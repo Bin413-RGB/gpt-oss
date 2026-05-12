@@ -1,6 +1,9 @@
 import json
 
 import requests
+
+HTTP_SESSION = requests.Session()
+REQUEST_TIMEOUT_SECONDS = 120
 import streamlit as st
 
 DEFAULT_FUNCTION_PROPERTIES = """
@@ -118,7 +121,7 @@ def run(container):
         tools.append({"type": "browser_search"})
     if use_code_interpreter:
         tools.append({"type": "code_interpreter"})
-    response = requests.post(
+    response = HTTP_SESSION.post(
         URL,
         json={
             "input": st.session_state.messages,
@@ -131,7 +134,9 @@ def run(container):
             "max_output_tokens": max_output_tokens,
         },
         stream=True,
+        timeout=REQUEST_TIMEOUT_SECONDS,
     )
+    response.raise_for_status()
 
     text_delta = ""
     code_interpreter_sessions: dict[str, dict] = {}

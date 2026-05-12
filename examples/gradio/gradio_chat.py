@@ -1,5 +1,8 @@
 import json
 import requests
+
+HTTP_SESSION = requests.Session()
+REQUEST_TIMEOUT_SECONDS = 120
 import gradio as gr
 
 DEFAULT_FUNCTION_PROPERTIES = """
@@ -72,7 +75,7 @@ def chat_with_model(message, history, model_choice, instructions, effort, use_fu
            else "http://localhost:8000/v1/responses")
     
     try:
-        response = requests.post(
+        response = HTTP_SESSION.post(
             URL,
             json={
                 "input": messages,
@@ -85,7 +88,9 @@ def chat_with_model(message, history, model_choice, instructions, effort, use_fu
                 "max_output_tokens": max_output_tokens,
             },
             stream=True,
+            timeout=REQUEST_TIMEOUT_SECONDS,
         )
+        response.raise_for_status()
         
         full_content = ""
         text_delta = ""
