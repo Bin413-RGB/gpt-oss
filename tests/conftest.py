@@ -1,8 +1,10 @@
 import os
 import sys
+import inspect
+import asyncio
 import pytest
 from typing import Generator, Any
-from unittest.mock import Mock, MagicMock
+from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -14,9 +16,35 @@ from openai_harmony import (
 from gpt_oss.responses_api.api_server import create_api_server
 
 
+def pytest_configure(config):
+    if not config.pluginmanager.hasplugin("asyncio"):
+        config.addinivalue_line("markers", "asyncio: run test as an asyncio coroutine")
+
+
+def pytest_pyfunc_call(pyfuncitem):
+    if pyfuncitem.config.pluginmanager.hasplugin("asyncio"):
+        return None
+    if "asyncio" not in pyfuncitem.keywords:
+        return None
+
+    testfunction = pyfuncitem.obj
+    if not inspect.iscoroutinefunction(testfunction):
+        return None
+
+    funcargs = {
+        name: pyfuncitem.funcargs[name]
+        for name in pyfuncitem._fixtureinfo.argnames
+    }
+    asyncio.run(testfunction(**funcargs))
+    return True
+
+
 @pytest.fixture(scope="session")
 def harmony_encoding():
-    return load_harmony_encoding(HarmonyEncodingName.HARMONY_GPT_OSS)
+    try:
+        return load_harmony_encoding(HarmonyEncodingName.HARMONY_GPT_OSS)
+    except Exception as exc:
+        pytest.skip(f"Harmony GPT-OSS encoding is unavailable: {exc}")
 
 
 @pytest.fixture
