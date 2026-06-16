@@ -9,7 +9,10 @@ from openai_harmony import (
 
 from gpt_oss.responses_api.api_server import create_api_server
 
-encoding = load_harmony_encoding(HarmonyEncodingName.HARMONY_GPT_OSS)
+try:
+    encoding = load_harmony_encoding(HarmonyEncodingName.HARMONY_GPT_OSS)
+except Exception as exc:
+    pytest.skip(f"Harmony GPT-OSS encoding is unavailable: {exc}", allow_module_level=True)
 
 fake_tokens = encoding.encode(
     "<|channel|>final<|message|>Hey there<|return|>", allowed_special="all"
