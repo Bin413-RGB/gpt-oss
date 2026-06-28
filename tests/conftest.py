@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from openai_harmony import (
     HarmonyEncodingName,
+    HarmonyError,
     load_harmony_encoding,
 )
 from gpt_oss.responses_api.api_server import create_api_server
@@ -16,7 +17,37 @@ from gpt_oss.responses_api.api_server import create_api_server
 
 @pytest.fixture(scope="session")
 def harmony_encoding():
-    return load_harmony_encoding(HarmonyEncodingName.HARMONY_GPT_OSS)
+    try:
+        return load_harmony_encoding(HarmonyEncodingName.HARMONY_GPT_OSS)
+    except HarmonyError as exc:
+        pytest.skip(f"Harmony GPT-OSS encoding unavailable: {exc}")
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "asyncio: run an async test function with the built-in asyncio runner",
+    )
+
+
+def pytest_pyfunc_call(pyfuncitem):
+    marker = pyfuncitem.get_closest_marker("asyncio")
+    if marker is None:
+        return None
+
+    import asyncio
+    import inspect
+
+    testfunction = pyfuncitem.obj
+    if not inspect.iscoroutinefunction(testfunction):
+        return None
+
+    funcargs = {
+        arg: pyfuncitem.funcargs[arg]
+        for arg in pyfuncitem._fixtureinfo.argnames
+    }
+    asyncio.run(testfunction(**funcargs))
+    return True
 
 
 @pytest.fixture
