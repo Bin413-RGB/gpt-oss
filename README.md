@@ -25,6 +25,7 @@ Both models were trained using our [harmony response format][harmony] and should
 - [Inference examples](#inference-examples)
 - [About this repository](#about-this-repository)
 - [Setup](#setup)
+- [Industrial Android and desktop readiness](#industrial-android-and-desktop-readiness)
 - [Download the model](#download-the-model)
 - [Reference PyTorch implementation](#reference-pytorch-implementation)
 - [Reference Triton implementation (single GPU)](#reference-triton-implementation-single-gpu)
@@ -244,6 +245,22 @@ If you want to modify the code or try the metal implementation set the project u
 ```shell
 git clone https://github.com/openai/gpt-oss.git
 GPTOSS_BUILD_METAL=1 pip install -e ".[metal]"
+```
+
+## Industrial Android and desktop readiness
+
+For production workstation checks before building Android or desktop applications
+against this repository, see [docs/industrial-environment.md](docs/industrial-environment.md).
+The strict diagnosis command is:
+
+```bash
+python scripts/codex_industrial_env.py
+```
+
+Repository-local JavaScript dependencies can be installed reproducibly with:
+
+```bash
+python scripts/codex_industrial_env.py --install-node
 ```
 
 ## Download the model

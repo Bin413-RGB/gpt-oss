@@ -28,6 +28,13 @@ triton = ["triton>=3.4", "safetensors>=0.5.3", "torch>=2.7.0"]
 torch = ["safetensors>=0.5.3", "torch>=2.7.0"]
 metal = ["numpy", "tqdm", "safetensors", "torch"]
 test = ["pytest>=8.4.1", "httpx>=0.28.1"]
+dev = [
+  "black>=25.1.0",
+  "mypy>=1.16.0",
+  "pre-commit>=4.2.0",
+  "pytest>=8.4.1",
+  "ruff>=0.12.0",
+]
 eval = ["pandas", "numpy", "openai", "jinja2", "tqdm", "blobfile"]
 
 [build-system]
