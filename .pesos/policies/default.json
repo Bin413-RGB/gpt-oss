@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "denied_commands": [
+    "format.com"
+  ],
+  "approval_commands": [
+    "bcdedit.exe",
+    "diskpart.exe",
+    "reg.exe",
+    "shutdown.exe"
+  ],
+  "protected_paths": [
+    "C:/Windows/**",
+    "C:/Program Files/**",
+    "C:/ProgramData/**"
+  ],
+  "writable_paths": [
+    "**/workspace/**",
+    "**/Projects/**"
+  ]
+}

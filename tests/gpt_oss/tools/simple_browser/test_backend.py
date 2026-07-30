@@ -1,6 +1,7 @@
-import pytest
-from typing import Generator, Any
+import asyncio
+from typing import Any
 from unittest import mock
+
 from aiohttp import ClientSession
 
 from gpt_oss.tools.simple_browser.backend import YouComBackend
@@ -21,17 +22,22 @@ class MockAiohttpResponse:
     async def __aenter__(self):
         return self
 
+
 def mock_os_environ_get(name: str, default: Any = "test_api_key"):
     assert name in ["YDC_API_KEY"]
     return default
+
 
 def test_youcom_backend():
     backend = YouComBackend(source="web")
     assert backend.source == "web"
 
-@pytest.mark.asyncio
 @mock.patch("aiohttp.ClientSession.get")
-async def test_youcom_backend_search(mock_session_get):
+def test_youcom_backend_search(mock_session_get):
+    asyncio.run(_test_youcom_backend_search(mock_session_get))
+
+
+async def _test_youcom_backend_search(mock_session_get):
     backend = YouComBackend(source="web")
     api_response = {
         "results": {
@@ -52,9 +58,12 @@ async def test_youcom_backend_search(mock_session_get):
         assert result.title == "test"
         assert result.urls == {"0": "https://www.example.com/web1", "1": "https://www.example.com/web2", "2": "https://www.example.com/news1", "3": "https://www.example.com/news2"}
 
-@pytest.mark.asyncio
 @mock.patch("aiohttp.ClientSession.post")
-async def test_youcom_backend_fetch(mock_session_get):
+def test_youcom_backend_fetch(mock_session_get):
+    asyncio.run(_test_youcom_backend_fetch(mock_session_get))
+
+
+async def _test_youcom_backend_fetch(mock_session_get):
     backend = YouComBackend(source="web")
     api_response = [
         {"title": "Fetch Result 1", "url": "https://www.example.com/fetch1", "html": "<div>Fetch Result 1 text</div>"},
@@ -67,4 +76,4 @@ async def test_youcom_backend_fetch(mock_session_get):
         assert result.text == "\nURL: https://www.example.com/fetch1\nFetch Result 1 text"
 
 
-    
+

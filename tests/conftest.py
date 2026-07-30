@@ -1,32 +1,53 @@
 import os
 import sys
+from typing import Any, Generator
+from unittest.mock import MagicMock
+
 import pytest
-from typing import Generator, Any
-from unittest.mock import Mock, MagicMock
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from openai_harmony import (
     HarmonyEncodingName,
+    HarmonyError,
     load_harmony_encoding,
 )
 from gpt_oss.responses_api.api_server import create_api_server
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--require-harmony-vocab",
+        action="store_true",
+        help="Fail instead of skip when the external Harmony vocabulary is unavailable.",
+    )
+
+
 @pytest.fixture(scope="session")
-def harmony_encoding():
-    return load_harmony_encoding(HarmonyEncodingName.HARMONY_GPT_OSS)
+def harmony_encoding(request):
+    try:
+        return load_harmony_encoding(HarmonyEncodingName.HARMONY_GPT_OSS)
+    except HarmonyError as error:
+        required = request.config.getoption("--require-harmony-vocab") or os.environ.get(
+            "GPT_OSS_REQUIRE_HARMONY_VOCAB"
+        ) == "1"
+        if required:
+            pytest.fail(
+                f"Harmony vocabulary is required but unavailable: {error}",
+                pytrace=False,
+            )
+        pytest.skip(f"Harmony vocabulary is unavailable: {error}")
 
 
 @pytest.fixture
 def mock_infer_token(harmony_encoding):
     fake_tokens = harmony_encoding.encode(
-        "<|channel|>final<|message|>Test response<|return|>", 
+        "<|channel|>final<|message|>Test response<|return|>",
         allowed_special="all"
     )
     token_queue = fake_tokens.copy()
-    
+
     def _mock_infer(tokens: list[int], temperature: float = 0.0, new_request: bool = False) -> int:
         nonlocal token_queue
         if len(token_queue) == 0:
@@ -81,14 +102,14 @@ def mock_python_tool():
 def reset_test_environment():
     test_env_vars = ['OPENAI_API_KEY', 'GPT_OSS_MODEL_PATH']
     original_values = {}
-    
+
     for var in test_env_vars:
         if var in os.environ:
             original_values[var] = os.environ[var]
             del os.environ[var]
-    
+
     yield
-    
+
     for var, value in original_values.items():
         os.environ[var] = value
 
@@ -96,23 +117,23 @@ def reset_test_environment():
 @pytest.fixture
 def performance_timer():
     import time
-    
+
     class Timer:
         def __init__(self):
             self.start_time = None
             self.end_time = None
-        
+
         def start(self):
             self.start_time = time.time()
-        
+
         def stop(self):
             self.end_time = time.time()
             return self.elapsed
-        
+
         @property
         def elapsed(self):
             if self.start_time and self.end_time:
                 return self.end_time - self.start_time
             return None
-    
+
     return Timer()
