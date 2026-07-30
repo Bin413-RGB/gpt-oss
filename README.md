@@ -416,7 +416,25 @@ options:
 
 ### Codex
 
-We support [codex](https://github.com/openai/codex) as a client for gpt-oss. To run the 20b version, set this to `~/.codex/config.toml`:
+We support [Codex](https://github.com/openai/codex) both in its standard,
+OpenAI-hosted mode and as an optional local client for gpt-oss.
+
+#### Standard and cloud usage
+
+To use the standard Codex experience, start `codex`, sign in with your ChatGPT
+account when prompted, and run it without the local `oss` profile:
+
+```bash
+codex
+```
+
+For hosted tasks, open [Codex on the web](https://chatgpt.com/codex), connect the
+GitHub repository, and create a cloud task. The local configuration below is
+optional and does not replace Codex's default provider.
+
+#### Optional local gpt-oss profile
+
+To run the 20b version locally, add this profile to `~/.codex/config.toml`:
 
 ```
 disable_response_storage = true
