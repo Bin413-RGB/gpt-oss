@@ -3,30 +3,6 @@ import json
 import requests
 import streamlit as st
 
-
-RTL_CSS = """
-<style>
-:root, body, .stApp, [data-testid="stSidebar"], [data-testid="stChatMessage"] {
-    direction: rtl;
-    font-family: 'Noto Naskh Arabic', 'Noto Sans Arabic', 'Amiri', Tahoma, Arial, sans-serif;
-}
-.stApp *, [data-testid="stSidebar"] * {
-    letter-spacing: 0 !important;
-}
-[data-testid="stChatMessageContent"], .stMarkdown, textarea, input {
-    direction: rtl;
-    unicode-bidi: plaintext;
-    text-align: right;
-}
-code, pre, .stCodeBlock, .stCodeBlock * {
-    direction: ltr !important;
-    text-align: left !important;
-    unicode-bidi: embed;
-    font-family: 'Cascadia Code', 'Fira Code', monospace !important;
-}
-</style>
-"""
-
 DEFAULT_FUNCTION_PROPERTIES = """
 {
     "type": "object",
@@ -40,14 +16,11 @@ DEFAULT_FUNCTION_PROPERTIES = """
 }
 """.strip()
 
-st.set_page_config(page_title="واجهة Codex العربية", page_icon="💬", layout="wide")
-st.markdown(RTL_CSS, unsafe_allow_html=True)
-
 # Session state for chat
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-st.title("💬 واجهة Codex العربية")
+st.title("💬 Chatbot")
 
 if "model" not in st.session_state:
     if "model" in st.query_params:
@@ -57,36 +30,36 @@ if "model" not in st.session_state:
 
 options = ["large", "small"]
 selection = st.sidebar.segmented_control(
-    "النموذج", options, selection_mode="single", default=st.session_state.model
+    "Model", options, selection_mode="single", default=st.session_state.model
 )
 # st.session_state.model = selection
 st.query_params.update({"model": selection})
 
 instructions = st.sidebar.text_area(
-    "التعليمات",
-    value="أنت مساعد مفيد يجيب عن الأسئلة ويساعد في تنفيذ المهام.",
+    "Instructions",
+    value="You are a helpful assistant that can answer questions and help with tasks.",
 )
 effort = st.sidebar.radio(
-    "مستوى الاستدلال",
+    "Reasoning effort",
     ["low", "medium", "high"],
     index=1,
 )
 st.sidebar.divider()
-st.sidebar.subheader("الدوال")
-use_functions = st.sidebar.toggle("استخدام الدوال", value=False)
+st.sidebar.subheader("Functions")
+use_functions = st.sidebar.toggle("Use functions", value=False)
 
-st.sidebar.subheader("الأدوات المدمجة")
+st.sidebar.subheader("Built-in Tools")
 # Built-in Tools section
-use_browser_search = st.sidebar.toggle("استخدام بحث المتصفح", value=False)
-use_code_interpreter = st.sidebar.toggle("استخدام مفسر الشيفرة", value=False)
+use_browser_search = st.sidebar.toggle("Use browser search", value=False)
+use_code_interpreter = st.sidebar.toggle("Use code interpreter", value=False)
 
 if use_functions:
-    function_name = st.sidebar.text_input("اسم الدالة", value="get_weather")
+    function_name = st.sidebar.text_input("Function name", value="get_weather")
     function_description = st.sidebar.text_area(
-        "وصف الدالة", value="احصل على حالة الطقس لمدينة محددة"
+        "Function description", value="Get the weather for a given city"
     )
     function_parameters = st.sidebar.text_area(
-        "معاملات الدالة", value=DEFAULT_FUNCTION_PROPERTIES
+        "Function parameters", value=DEFAULT_FUNCTION_PROPERTIES
     )
 else:
     function_name = None
@@ -94,13 +67,13 @@ else:
     function_parameters = None
 st.sidebar.divider()
 temperature = st.sidebar.slider(
-    "درجة العشوائية", min_value=0.0, max_value=1.0, value=1.0, step=0.01
+    "Temperature", min_value=0.0, max_value=1.0, value=1.0, step=0.01
 )
 max_output_tokens = st.sidebar.slider(
-    "الحد الأقصى لرموز الإخراج", min_value=1, max_value=131072, value=30000, step=1000
+    "Max output tokens", min_value=1, max_value=131072, value=30000, step=1000
 )
 st.sidebar.divider()
-debug_mode = st.sidebar.toggle("وضع التصحيح", value=False)
+debug_mode = st.sidebar.toggle("Debug mode", value=False)
 
 if debug_mode:
     st.sidebar.divider()
@@ -225,16 +198,16 @@ def run(container):
             item = data.get("item", {})
             if item.get("type") == "function_call":
                 with container.chat_message("function_call", avatar="🔨"):
-                    st.markdown(f"استدعاء `{item.get('name')}`")
-                    st.caption("المعاملات")
+                    st.markdown(f"Called `{item.get('name')}`")
+                    st.caption("Arguments")
                     st.code(item.get("arguments", ""), language="json")
             if item.get("type") == "web_search_call":
-                placeholder.markdown("✅ اكتمل")
+                placeholder.markdown("✅ Done")
             if item.get("type") == "code_interpreter_call":
                 item_id = item.get("id")
                 session = code_interpreter_sessions.get(item_id)
                 if session:
-                    session["status"].markdown("✅ اكتمل")
+                    session["status"].markdown("✅ Done")
                     final_code = item.get("code") or session["code_text"]
                     if final_code:
                         session["code"].code(final_code, language="python")
@@ -242,7 +215,7 @@ def run(container):
                     outputs = item.get("outputs") or []
                     if outputs and not session["rendered_outputs"]:
                         with session["outputs"]:
-                            st.markdown("**المخرجات**")
+                            st.markdown("**Outputs**")
                             for output_item in outputs:
                                 output_type = output_item.get("type")
                                 if output_type == "logs":
@@ -253,38 +226,38 @@ def run(container):
                                 elif output_type == "image":
                                     st.image(
                                         output_item.get("url", ""),
-                                        caption="صورة مفسر الشيفرة",
+                                        caption="Code interpreter image",
                                     )
                         session["rendered_outputs"] = True
                     elif not outputs and not session["rendered_outputs"]:
                         with session["outputs"]:
-                            st.caption("(لا توجد مخرجات)")
+                            st.caption("(No outputs)")
                         session["rendered_outputs"] = True
                 else:
-                    placeholder.markdown("✅ اكتمل")
+                    placeholder.markdown("✅ Done")
         elif event_type == "response.code_interpreter_call.in_progress":
             item_id = data.get("item_id")
             session = code_interpreter_sessions.get(item_id)
             if session:
-                session["status"].markdown("⏳ قيد التشغيل")
+                session["status"].markdown("⏳ Running")
             else:
                 try:
-                    placeholder.markdown("⏳ قيد التشغيل")
+                    placeholder.markdown("⏳ Running")
                 except Exception:
                     pass
         elif event_type == "response.code_interpreter_call.interpreting":
             item_id = data.get("item_id")
             session = code_interpreter_sessions.get(item_id)
             if session:
-                session["status"].markdown("🧮 جارٍ التفسير")
+                session["status"].markdown("🧮 Interpreting")
         elif event_type == "response.code_interpreter_call.completed":
             item_id = data.get("item_id")
             session = code_interpreter_sessions.get(item_id)
             if session:
-                session["status"].markdown("✅ اكتمل")
+                session["status"].markdown("✅ Done")
             else:
                 try:
-                    placeholder.markdown("✅ اكتمل")
+                    placeholder.markdown("✅ Done")
                 except Exception:
                     pass
         elif event_type == "response.code_interpreter_call_code.delta":
@@ -305,19 +278,19 @@ def run(container):
         elif event_type == "response.completed":
             response = data.get("response", {})
             if debug_mode:
-                container.expander("التصحيح", expanded=False).code(
+                container.expander("Debug", expanded=False).code(
                     response.get("metadata", {}).get("__debug", ""), language="text"
                 )
             st.session_state.messages.extend(response.get("output", []))
             if st.session_state.messages[-1].get("type") == "function_call":
                 with container.form("function_output_form"):
                     _function_output = st.text_input(
-                        "أدخل ناتج الدالة",
+                        "Enter function output",
                         value=st.session_state.get("function_output", "It's sunny!"),
                         key="function_output",
                     )
                     st.form_submit_button(
-                        "إرسال ناتج الدالة",
+                        "Submit function output",
                         on_click=trigger_fake_tool,
                         args=[container],
                     )
@@ -349,24 +322,24 @@ for msg in st.session_state.messages:
                     st.markdown(item["text"])
     elif msg.get("type") == "function_call":
         with st.chat_message("function_call", avatar="🔨"):
-            st.markdown(f"استدعاء `{msg.get('name')}`")
-            st.caption("المعاملات")
+            st.markdown(f"Called `{msg.get('name')}`")
+            st.caption("Arguments")
             st.code(msg.get("arguments", ""), language="json")
     elif msg.get("type") == "function_call_output":
         with st.chat_message("function_call_output", avatar="✅"):
-            st.caption("الناتج")
+            st.caption("Output")
             st.code(msg.get("output", ""), language="text")
     elif msg.get("type") == "web_search_call":
         with st.chat_message("web_search_call", avatar="🌐"):
             st.code(json.dumps(msg.get("action", {}), indent=4), language="json")
-            st.markdown("✅ اكتمل")
+            st.markdown("✅ Done")
     elif msg.get("type") == "code_interpreter_call":
         with st.chat_message("code_interpreter_call", avatar="🧪"):
-            st.markdown("✅ اكتمل")
+            st.markdown("✅ Done")
 
 if render_input:
     # Input field
-    if prompt := st.chat_input("اكتب رسالة..."):
+    if prompt := st.chat_input("Type a message..."):
         st.session_state.messages.append(
             {
                 "type": "message",

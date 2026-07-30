@@ -25,7 +25,6 @@ Both models were trained using our [harmony response format][harmony] and should
 - [Inference examples](#inference-examples)
 - [About this repository](#about-this-repository)
 - [Setup](#setup)
-- [Industrial Android and desktop readiness](#industrial-android-and-desktop-readiness)
 - [Download the model](#download-the-model)
 - [Reference PyTorch implementation](#reference-pytorch-implementation)
 - [Reference Triton implementation (single GPU)](#reference-triton-implementation-single-gpu)
@@ -247,22 +246,6 @@ git clone https://github.com/openai/gpt-oss.git
 GPTOSS_BUILD_METAL=1 pip install -e ".[metal]"
 ```
 
-## Industrial Android and desktop readiness
-
-For production workstation checks before building Android or desktop applications
-against this repository, see [docs/industrial-environment.md](docs/industrial-environment.md).
-The strict diagnosis command is:
-
-```bash
-python scripts/codex_industrial_env.py
-```
-
-Repository-local JavaScript dependencies can be installed reproducibly with:
-
-```bash
-python scripts/codex_industrial_env.py --install-node
-```
-
 ## Download the model
 
 You can download the model weights from the [Hugging Face Hub](https://huggingface.co/collections/openai/gpt-oss-68911959590a1634ba11c7a4) directly from Hugging Face CLI:
@@ -416,7 +399,25 @@ options:
 
 ### Codex
 
-We support [codex](https://github.com/openai/codex) as a client for gpt-oss. To run the 20b version, set this to `~/.codex/config.toml`:
+We support [Codex](https://github.com/openai/codex) both in its standard,
+OpenAI-hosted mode and as an optional local client for gpt-oss.
+
+#### Standard and cloud usage
+
+To use the standard Codex experience, start `codex`, sign in with your ChatGPT
+account when prompted, and run it without the local `oss` profile:
+
+```bash
+codex
+```
+
+For hosted tasks, open [Codex on the web](https://chatgpt.com/codex), connect the
+GitHub repository, and create a cloud task. The local configuration below is
+optional and does not replace Codex's default provider.
+
+#### Optional local gpt-oss profile
+
+To run the 20b version locally, add this profile to `~/.codex/config.toml`:
 
 ```
 disable_response_storage = true
