@@ -1,6 +1,19 @@
 import json
+import threading
+
 import requests
 import gradio as gr
+
+REQUEST_TIMEOUT = (10, 120)
+_http_sessions = threading.local()
+
+
+def get_http_session() -> requests.Session:
+    """Return a connection-pooled session owned by the current worker thread."""
+    if not hasattr(_http_sessions, "session"):
+        _http_sessions.session = requests.Session()
+    return _http_sessions.session
+
 
 DEFAULT_FUNCTION_PROPERTIES = """
 {
@@ -72,7 +85,7 @@ def chat_with_model(message, history, model_choice, instructions, effort, use_fu
            else "http://localhost:8000/v1/responses")
 
     try:
-        response = requests.post(
+        response = get_http_session().post(
             URL,
             json={
                 "input": messages,
@@ -85,11 +98,11 @@ def chat_with_model(message, history, model_choice, instructions, effort, use_fu
                 "max_output_tokens": max_output_tokens,
             },
             stream=True,
+            timeout=REQUEST_TIMEOUT,
         )
+        response.raise_for_status()
 
         full_content = ""
-        text_delta = ""
-        current_output_index = 0
         in_reasoning = False
 
         for line in response.iter_lines(decode_unicode=True):
@@ -105,16 +118,13 @@ def chat_with_model(message, history, model_choice, instructions, effort, use_fu
                 continue
 
             event_type = data.get("type", "")
-            output_index = data.get("output_index", 0)
 
             if event_type == "response.output_item.added":
-                current_output_index = output_index
                 output_type = data.get("item", {}).get("type", "message")
-                text_delta = ""
 
                 if output_type == "reasoning":
                     if not in_reasoning:
-                        full_content += "🤔 **Thinking...**\n"
+                        full_content += "🤔 **جارٍ التفكير...**\n"
                         in_reasoning = True
                 elif output_type == "message":
                     if in_reasoning:
@@ -140,7 +150,7 @@ def chat_with_model(message, history, model_choice, instructions, effort, use_fu
             elif event_type == "response.output_item.done":
                 item = data.get("item", {})
                 if item.get("type") == "function_call":
-                    function_call_text = f"\n\n🔨 Called `{item.get('name')}`\n**Arguments**\n```json\n{item.get('arguments', '')}\n```"
+                    function_call_text = f"\n\n🔨 استدعاء `{item.get('name')}`\n**المعاملات**\n```json\n{item.get('arguments', '')}\n```"
                     full_content += function_call_text
 
                     # Update last assistant message (idiomatic Gradio pattern)
@@ -148,7 +158,7 @@ def chat_with_model(message, history, model_choice, instructions, effort, use_fu
                     yield history, ""
 
                 elif item.get("type") == "web_search_call":
-                    web_search_text = f"\n\n🌐 **Web Search**\n```json\n{json.dumps(item.get('action', {}), indent=2)}\n```\n✅ Done"
+                    web_search_text = f"\n\n🌐 **بحث الويب**\n```json\n{json.dumps(item.get('action', {}), indent=2)}\n```\n✅ اكتمل"
                     full_content += web_search_text
 
                     # Update last assistant message (idiomatic Gradio pattern)
@@ -160,7 +170,7 @@ def chat_with_model(message, history, model_choice, instructions, effort, use_fu
                 if debug_mode:
                     debug_info = response_data.get("metadata", {}).get("__debug", "")
                     if debug_info:
-                        full_content += f"\n\n**Debug**\n```\n{debug_info}\n```"
+                        full_content += f"\n\n**التصحيح**\n```\n{debug_info}\n```"
 
                         # Update last assistant message (idiomatic Gradio pattern)
                         history[-1][1] = full_content
@@ -171,47 +181,63 @@ def chat_with_model(message, history, model_choice, instructions, effort, use_fu
         return history, ""
 
     except Exception as e:
-        error_message = f"❌ Error: {str(e)}"
+        error_message = f"❌ خطأ: {str(e)}"
         history[-1][1] = error_message
         return history, ""
 
 
 # Create the Gradio interface
-with gr.Blocks(title="💬 Chatbot") as demo:
-    gr.Markdown("# 💬 Chatbot")
+with gr.Blocks(
+    title="💬 واجهة Codex العربية",
+    css="""
+    :root { font-family: 'Noto Naskh Arabic', 'Noto Sans Arabic', 'Amiri', Tahoma, Arial, sans-serif; }
+    .gradio-container, .gradio-container * {
+        direction: rtl;
+        unicode-bidi: plaintext;
+        text-align: right;
+        font-family: 'Noto Naskh Arabic', 'Noto Sans Arabic', 'Amiri', Tahoma, Arial, sans-serif !important;
+        letter-spacing: 0;
+    }
+    textarea, input, .prose, .message, code, pre {
+        unicode-bidi: plaintext;
+    }
+    code, pre { direction: ltr; text-align: left; font-family: 'Cascadia Code', 'Fira Code', monospace !important; }
+    """,
+) as demo:
+    gr.Markdown("# 💬 واجهة Codex العربية")
 
     with gr.Row():
         with gr.Column(scale=3):
             chatbot = gr.Chatbot(height=500)
 
             with gr.Row():
-                msg = gr.Textbox(placeholder="Type a message...", scale=4, show_label=False)
-                send_btn = gr.Button("Send", scale=1)
+                msg = gr.Textbox(placeholder="اكتب رسالة...", scale=4, show_label=False)
+                send_btn = gr.Button("إرسال", scale=1)
 
-            clear_btn = gr.Button("Clear Chat")
+            clear_btn = gr.Button("مسح المحادثة")
 
         with gr.Column(scale=1):
-            model_choice = gr.Radio(["large", "small"], value="small", label="Model")
+            model_choice = gr.Radio(["large", "small"], value="small", label="النموذج")
 
             instructions = gr.Textbox(
-                label="Instructions",
-                value="You are a helpful assistant that can answer questions and help with tasks.",
+                label="التعليمات",
+                value="أنت مساعد مفيد يجيب عن الأسئلة ويساعد في تنفيذ المهام.",
                 lines=3
             )
 
-            effort = gr.Radio(["low", "medium", "high"], value="medium", label="Reasoning effort")
+            effort = gr.Radio(["low", "medium", "high"], value="medium", label="مستوى الاستدلال")
 
-            gr.Markdown("#### Functions")
-            use_functions = gr.Checkbox(label="Use functions", value=False)
+            gr.Markdown("#### الدوال")
+            use_functions = gr.Checkbox(label="استخدام الدوال", value=False)
 
             with gr.Column(visible=False) as function_group:
-                function_name = gr.Textbox(label="Function name", value="get_weather")
+                function_name = gr.Textbox(label="اسم الدالة", value="get_weather")
                 function_description = gr.Textbox(
-                    label="Function description",
-                    value="Get the weather for a given city"
+                    label="وصف الدالة",
+                    value="احصل على حالة الطقس لمدينة محددة"
                 )
                 function_parameters = gr.Textbox(
-                    label="Function parameters",
+                    label="معاملات الدالة",
                     value=DEFAULT_FUNCTION_PROPERTIES,
                     lines=6
                 )
@@ -219,13 +245,13 @@ with gr.Blocks(title="💬 Chatbot") as demo:
             # Conditional browser search (matching Streamlit logic)
             # In Streamlit: if "show_browser" in st.query_params:
             # For Gradio, we'll always show it (simplified)
-            gr.Markdown("#### Built-in Tools")
-            use_browser_search = gr.Checkbox(label="Use browser search", value=False)
+            gr.Markdown("#### أدوات مدمجة")
+            use_browser_search = gr.Checkbox(label="استخدام بحث المتصفح", value=False)
 
-            temperature = gr.Slider(0.0, 1.0, value=1.0, step=0.01, label="Temperature")
-            max_output_tokens = gr.Slider(1000, 20000, value=1024, step=100, label="Max output tokens")
+            temperature = gr.Slider(0.0, 1.0, value=1.0, step=0.01, label="درجة العشوائية")
+            max_output_tokens = gr.Slider(1000, 20000, value=1024, step=100, label="الحد الأقصى لرموز الإخراج")
 
-            debug_mode = gr.Checkbox(label="Debug mode", value=False)
+            debug_mode = gr.Checkbox(label="وضع التصحيح", value=False)
 
     # Event handlers
     def toggle_function_group(use_funcs):
