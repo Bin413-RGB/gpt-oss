@@ -1,0 +1,35 @@
+name: Devfactory validation
+on:
+  pull_request:
+    paths: ['devfactory/**', '.github/workflows/devfactory-validation.yml']
+  push:
+    paths: ['devfactory/**', '.github/workflows/devfactory-validation.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        shell: [powershell, pwsh]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Isolated behavior checks
+        shell: ${{ matrix.shell }}
+        run: ./devfactory/Tests/Test-DevFactory.ps1
+  bash:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and non-WSL rejection
+        shell: bash
+        run: |
+          bash -n devfactory/Scripts/repair-dev-factory.sh
+          bash devfactory/Scripts/repair-dev-factory.sh --help
+          set +e
+          output=$(bash devfactory/Scripts/repair-dev-factory.sh 2>&1)
+          status=$?
+          set -e
+          test "$status" -eq 2
+          test "$output" = 'BLOCKED: this diagnostic requires WSL'
