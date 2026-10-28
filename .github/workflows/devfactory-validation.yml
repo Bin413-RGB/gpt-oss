@@ -10,13 +10,13 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
-    strategy:
-      matrix:
-        shell: [powershell, pwsh]
     steps:
       - uses: actions/checkout@v4
-      - name: Isolated behavior checks
-        shell: ${{ matrix.shell }}
+      - name: Windows PowerShell 5.1 behavior checks
+        shell: powershell
+        run: ./devfactory/Tests/Test-DevFactory.ps1
+      - name: PowerShell 7 behavior checks
+        shell: pwsh
         run: ./devfactory/Tests/Test-DevFactory.ps1
   bash:
     runs-on: ubuntu-latest
